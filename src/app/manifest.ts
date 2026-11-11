@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+const assetVersion = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "v2";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
@@ -13,9 +15,24 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#0b1220",
     theme_color: "#0b1220",
     icons: [
-      { src: "/pwa-icon-192.svg", sizes: "192x192", type: "image/svg+xml", purpose: "any" },
-      { src: "/pwa-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/pwa-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
+      {
+        src: `/pwa-icon-192.svg?v=${assetVersion}`,
+        sizes: "192x192",
+        type: "image/svg+xml",
+        purpose: "any",
+      },
+      {
+        src: `/pwa-icon-512.png?v=${assetVersion}`,
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: `/pwa-icon.svg?v=${assetVersion}`,
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "maskable",
+      },
     ],
   };
 }

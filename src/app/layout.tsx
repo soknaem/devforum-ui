@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import "./globals.css"; 
+import "./globals.css";
 import { AppProviders } from "@/components/providers";
 import { THEME_INIT_SCRIPT } from "@/components/theme/ThemeProvider";
 import { PwaServiceWorker } from "@/components/PwaServiceWorker";
 import { getSiteUrl } from "@/lib/site-url";
 
 const siteUrl = getSiteUrl();
-const socialPreview = new URL("/social-preview.png", siteUrl).toString();
+const assetVersion = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "v2";
+const socialPreview = new URL(`/social-preview.png?v=${assetVersion}`, siteUrl).toString();
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,
@@ -30,15 +31,15 @@ export const metadata: Metadata = {
     images: [{ url: socialPreview, alt: "DevForum — Build. Share. Learn." }],
   },
   robots: { index: true, follow: true },
-  manifest: "/manifest.webmanifest",
+  manifest: `/manifest.webmanifest?v=${assetVersion}`,
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "DevForum",
   },
   icons: {
-    icon: [{ url: "/pwa-icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/pwa-icon-512.png", type: "image/png", sizes: "512x512" }],
+    icon: [{ url: `/pwa-icon.svg?v=${assetVersion}`, type: "image/svg+xml" }],
+    apple: [{ url: `/pwa-icon-512.png?v=${assetVersion}`, type: "image/png", sizes: "512x512" }],
   },
 };
 
