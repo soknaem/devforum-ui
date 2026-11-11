@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Check, Copy, Loader2, Send, Share2 } from "lucide-react";
 
 import { useShareResourceMutation, type Resource } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -25,6 +25,61 @@ export function ShareDialog({
   const { toast } = useToast();
   const [share, { isLoading }] = useShareResourceMutation();
   const [caption, setCaption] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
+  const original = resource.sharedFrom ?? resource;
+
+  const shareUrl = typeof window === "undefined"
+    ? ""
+    : new URL(`/resources/${resource.id}`, window.location.origin).toString();
+  const shareText = caption.trim() || original.description || resource.description || original.title;
+  const encodedUrl = encodeURIComponent(shareUrl);
+  const encodedText = encodeURIComponent(shareText);
+
+  async function copyLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      const input = document.createElement("textarea");
+      input.value = shareUrl;
+      input.setAttribute("readonly", "");
+      input.style.position = "fixed";
+      input.style.opacity = "0";
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      input.remove();
+    }
+    setCopied(true);
+    setShareStatus("Link copied. Paste it into any app or message.");
+    window.setTimeout(() => setCopied(false), 2200);
+  }
+
+  async function shareToSystem(destination?: string) {
+    if (!shareUrl) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: original.title, text: shareText, url: shareUrl });
+        setShareStatus("");
+      } catch (error) {
+        if (error instanceof Error && error.name !== "AbortError") {
+          setShareStatus("Sharing is not available here. Copy the link instead.");
+        }
+      }
+      return;
+    }
+    await copyLink();
+    if (destination) setShareStatus(`Link copied. Paste it into ${destination}.`);
+  }
+
+  const socialLinks = [
+    { name: "Telegram", mark: "T", className: "bg-sky-500", href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}` },
+    { name: "Facebook", mark: "f", className: "bg-blue-700", href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+    { name: "WhatsApp", mark: "W", className: "bg-emerald-500", href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}` },
+    { name: "X", mark: "X", className: "bg-slate-900", href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}` },
+    { name: "LinkedIn", mark: "in", className: "bg-sky-700", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}` },
+  ];
 
   useEffect(() => {
     if (!open) return;
@@ -36,9 +91,6 @@ export function ShareDialog({
   }, [open, isLoading, onClose]);
 
   if (!open || typeof document === "undefined") return null;
-
-  // Sharing a share re-shares the original post (the API does the same).
-  const original = resource.sharedFrom ?? resource;
 
   async function submit() {
     try {
@@ -66,7 +118,7 @@ export function ShareDialog({
       onMouseDown={() => !isLoading && onClose()}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -74,10 +126,64 @@ export function ShareDialog({
       >
         <h2 className="text-lg font-black text-slate-900">Share resource</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Add an optional caption before sharing.
+          Send this link to your friends or share it with the DevForum community.
         </p>
 
-        <textarea
+        <button
+          type="button"
+          onClick={() => shareToSystem()}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+        >
+          <Share2 className="h-4 w-4" /> Share with apps on this device
+        </button>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {socialLinks.map((item) => (
+            <a
+              key={item.name}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl p-2 text-center text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+              aria-label={`Share on ${item.name}`}
+            >
+              <span className={`grid h-10 w-10 place-items-center rounded-full text-sm font-black text-white ${item.className}`}>
+                {item.mark}
+              </span>
+              {item.name}
+            </a>
+          ))}
+        </div>
+
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => shareToSystem("Messenger")}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <Send className="h-4 w-4 text-blue-600" /> Messenger
+          </button>
+          <button
+            type="button"
+            onClick={() => shareToSystem("TikTok")}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <span className="font-black text-slate-900">♪</span> TikTok
+          </button>
+          <button
+            type="button"
+            onClick={copyLink}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied" : "Copy link"}
+          </button>
+        </div>
+        {shareStatus && <p className="mt-2 text-center text-xs text-slate-500" role="status">{shareStatus}</p>}
+
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Share to DevForum</p>
+          <textarea
           value={caption}
           onChange={(event) => setCaption(event.target.value)}
           rows={4}
@@ -112,8 +218,9 @@ export function ShareDialog({
             className="button-primary gap-2"
           >
             {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Share
+            Share on DevForum
           </button>
+        </div>
         </div>
       </div>
     </div>,

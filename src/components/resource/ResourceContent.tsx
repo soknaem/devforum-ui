@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ExternalLink, FileText } from "lucide-react";
 
-import type { Media, Resource } from "@/lib/api";
+import type { ContentBlock, Media, Resource } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
 import { ProgressiveImage } from "@/components/ui/ProgressiveImage";
 
@@ -166,11 +166,45 @@ function MediaItem({
  * YouTube / external link preview and tags. Used by the feed card for normal posts
  * AND for the original post embedded inside a share.
  */
+export function ResourceBlockBody({
+  blocks,
+  title,
+}: {
+  blocks: ContentBlock[];
+  title: string;
+}) {
+  return (
+    <div className="mt-5 space-y-5">
+      {blocks.map((block) => {
+        if (block.type === "TEXT") {
+          return block.text?.trim() ? (
+            <p key={block.id} className="whitespace-pre-wrap break-words text-[16px] leading-7 text-slate-700">
+              {block.text}
+            </p>
+          ) : null;
+        }
+
+        if (!block.media) return null;
+        if (isImage(block.media.url, block.media.contentType)) {
+          return <ImageGallery key={block.id} images={[block.media]} title={title} />;
+        }
+
+        return (
+          <div key={block.id} className="overflow-hidden rounded-2xl bg-slate-100">
+            <MediaItem media={block.media} title={title} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ResourceContent({
   resource,
   compact = false,
   allMedia = false,
   fullText = false,
+  orderedBody = false,
 }: {
   resource: Resource;
   /** Hide the description (used by compact lists). */
@@ -179,6 +213,8 @@ export function ResourceContent({
   allMedia?: boolean;
   /** Show the whole description instead of clamping it to 3 lines. */
   fullText?: boolean;
+  /** Use authored text/media order on detail embeds; feed cards keep the legacy layout. */
+  orderedBody?: boolean;
 }) {
   const mediaList = resource.media ?? [];
   const imageMedia = mediaList.filter((item) => isImage(item.url, item.contentType));
@@ -202,7 +238,7 @@ export function ResourceContent({
           {resource.title}
         </h2>
 
-        {resource.description && !compact && (
+        {resource.description && !compact && !(orderedBody && resource.blocks?.length) && (
           <p
             className={
               fullText
@@ -215,7 +251,9 @@ export function ResourceContent({
         )}
       </Link>
 
-      {(imageMedia.length > 0 || attachmentMedia.length > 0) && (
+      {orderedBody && resource.blocks?.length ? (
+        <ResourceBlockBody blocks={resource.blocks} title={resource.title} />
+      ) : (imageMedia.length > 0 || attachmentMedia.length > 0) ? (
         <div className="mt-4 space-y-3">
           <ImageGallery images={imageMedia} title={resource.title} />
           {attachmentMedia.map((item) => (
@@ -224,7 +262,7 @@ export function ResourceContent({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {youtubeUrl ? (
         <div className="mt-4 overflow-hidden rounded-2xl bg-black">
@@ -287,9 +325,11 @@ export function ResourceContent({
 export function SharedPostEmbed({
   original,
   compact = false,
+  orderedBody = false,
 }: {
   original: Resource;
   compact?: boolean;
+  orderedBody?: boolean;
 }) {
   return (
     <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -317,6 +357,7 @@ export function SharedPostEmbed({
           compact={compact}
           allMedia
           fullText
+          orderedBody={orderedBody}
         />
       </div>
     </div>

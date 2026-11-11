@@ -6,6 +6,7 @@ import { Loader2, SearchX, Sparkles } from "lucide-react";
 import { useGetFeedQuery, useGetResourcesQuery, type Resource } from "@/lib/api";
 import { ResourceCard } from "@/components/resource/ResourceCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ShareSiteButton } from "@/components/layout/ShareSiteButton";
 import Link from "next/link";
 
 function HomeFeed() {
@@ -284,9 +285,12 @@ function HomeFeed() {
               A simple developer feed for useful resources, ideas and conversations.
             </p>
           </div>
-          <Link href="/resources/new" className="button-primary shrink-0">
-            Share a resource
-          </Link>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <ShareSiteButton />
+            <Link href="/resources/new" className="button-primary">
+              Share a resource
+            </Link>
+          </div>
         </div>
       )}
 

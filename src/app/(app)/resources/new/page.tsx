@@ -1,55 +1,61 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { Loader2, Upload, X } from "lucide-react";
-import {
-  useCreateResourceMutation,
-  useCreateResourceWithMediaMutation,
-} from "@/lib/api";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useCreateResourceWithMediaMutation } from "@/lib/api";
+import { ResourceBodyEditor, type EditableContentBlock } from "@/components/resource/ResourceBodyEditor";
 const types = ["BOOK", "CODE", "LINK", "VIDEO", "ARTICLE"];
 export default function NewResourcePage() {
   const router = useRouter();
-  const [create, { isLoading: createLoading }] = useCreateResourceMutation();
-  const [createMedia, { isLoading: mediaLoading }] =
-    useCreateResourceWithMediaMutation();
+  const [createMedia, { isLoading: mediaLoading }] = useCreateResourceWithMediaMutation();
   const [form, setForm] = useState({
     title: "",
-    description: "",
     url: "",
     type: "ARTICLE",
     status: "PUBLISHED",
     categoryId: "",
     tags: "",
   });
-  const [files, setFiles] = useState<File[]>([]);
-  const input = useRef<HTMLInputElement>(null);
-  const loading = createLoading || mediaLoading;
+  const [bodyBlocks, setBodyBlocks] = useState<EditableContentBlock[]>([
+    { id: "content-1", type: "TEXT", text: "" },
+  ]);
+  const loading = mediaLoading;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const tags = form.tags
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-    let result;
-    if (files.length) {
-      const fd = new FormData();
-      fd.append("title", form.title);
-      fd.append("description", form.description);
-      fd.append("url", form.url);
-      fd.append("type", form.type);
-      fd.append("status", form.status);
-      if (form.categoryId) fd.append("categoryId", form.categoryId);
-      fd.append("tags", tags.join(","));
-      files.forEach((f) => fd.append("files", f));
-      result = await createMedia(fd);
-    } else
-      result = await create({
-        ...form,
-        categoryId: form.categoryId ? Number(form.categoryId) : undefined,
-        tags,
-      });
-    if ("data" in result && result.data?.data?.id)
+    const tags = form.tags.split(",").map((value) => value.trim()).filter(Boolean);
+    const uploadedFiles: File[] = [];
+    const orderedBlocks: Array<{ type: "TEXT"; text: string } | { type: "MEDIA"; fileIndex: number }> = [];
+    bodyBlocks.forEach((block) => {
+      if (block.type === "TEXT") {
+        orderedBlocks.push({ type: "TEXT", text: block.text });
+      } else if (block.file) {
+        const fileIndex = uploadedFiles.push(block.file) - 1;
+        orderedBlocks.push({ type: "MEDIA", fileIndex });
+      }
+    });
+    const description = bodyBlocks
+      .filter((block): block is Extract<EditableContentBlock, { type: "TEXT" }> => block.type === "TEXT")
+      .map((block) => block.text.trim())
+      .filter(Boolean)
+      .join("\n\n")
+      .slice(0, 2000);
+
+    const fd = new FormData();
+    fd.append("title", form.title);
+    fd.append("description", description);
+    fd.append("url", form.url);
+    fd.append("type", form.type);
+    fd.append("status", form.status);
+    if (form.categoryId) fd.append("categoryId", form.categoryId);
+    fd.append("tags", tags.join(","));
+    fd.append("blocks", JSON.stringify(orderedBlocks));
+    uploadedFiles.forEach((file) => fd.append("files", file));
+
+    const result = await createMedia(fd);
+    if ("data" in result && result.data?.data?.id) {
       router.push(`/resources/${result.data.data.id}`);
+    }
   }
   return (
     <section className="mx-auto max-w-3xl">
@@ -104,16 +110,7 @@ export default function NewResourcePage() {
             placeholder="https://..."
           />
         </label>
-        <label className="field">
-          Description
-          <textarea
-            rows={7}
-            maxLength={2000}
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Explain why this resource is useful..."
-          />
-        </label>
+        <ResourceBodyEditor blocks={bodyBlocks} onChange={setBodyBlocks} />
         <label className="field">
           Category ID{" "}
           <input
@@ -136,41 +133,6 @@ export default function NewResourcePage() {
             placeholder="java, spring-boot, nextjs"
           />
         </label>
-        <div>
-          <p className="mb-2 text-sm font-semibold">Attachments</p>
-          <button
-            type="button"
-            onClick={() => input.current?.click()}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm font-semibold text-slate-600 hover:border-blue-300 hover:bg-blue-50"
-          >
-            <Upload className="h-5 w-5" /> Choose files
-            <input
-              ref={input}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => setFiles(Array.from(e.target.files || []))}
-            />
-          </button>
-          {files.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {files.map((f, i) => (
-                <div
-                  key={`${f.name}-${i}`}
-                  className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
-                >
-                  <span className="truncate">{f.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                  >
-                    <X className="h-4 w-4 text-slate-400" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
         <div className="flex justify-end gap-2 border-t pt-5">
           <button
             type="button"

@@ -3,11 +3,33 @@ import "./globals.css";
 import { AppProviders } from "@/components/providers";
 import { THEME_INIT_SCRIPT } from "@/components/theme/ThemeProvider";
 import { PwaServiceWorker } from "@/components/PwaServiceWorker";
+import { getSiteUrl } from "@/lib/site-url";
+
+const siteUrl = getSiteUrl();
+const socialPreview = new URL("/social-preview.png", siteUrl).toString();
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title: "DevForum",
-  description: "Developer community and knowledge sharing platform",
+  description: "A developer community for useful resources, ideas and conversations.",
   applicationName: "DevForum",
+  keywords: ["developer community", "programming resources", "software development", "developer forum"],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "DevForum",
+    title: "DevForum — Build. Share. Learn.",
+    description: "A developer community for useful resources, ideas and conversations.",
+    url: "/",
+    images: [{ url: socialPreview, width: 1200, height: 630, alt: "DevForum — Build. Share. Learn." }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DevForum — Build. Share. Learn.",
+    description: "A developer community for useful resources, ideas and conversations.",
+    images: [{ url: socialPreview, alt: "DevForum — Build. Share. Learn." }],
+  },
+  robots: { index: true, follow: true },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
