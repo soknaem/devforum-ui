@@ -36,7 +36,7 @@ import {
 import { Avatar } from "@/components/ui/Avatar";
 import type { Comment } from "@/lib/api";
 import { ReactionControl, reactionInfo } from "@/components/resource/ReactionControl";
-import { SharedPostEmbed } from "@/components/resource/ResourceContent";
+import { ImageGallery, SharedPostEmbed } from "@/components/resource/ResourceContent";
 import { ShareDialog } from "@/components/resource/ShareDialog";
 import { useToast } from "@/components/ui/Toast";
 
@@ -424,17 +424,12 @@ export default function ResourcePage() {
 
         {!isShare && media?.data?.length ? (
           <div className="mt-6 space-y-3">
-            {media.data.map((item) => {
-              const image = item.contentType?.startsWith("image/");
+            <ImageGallery
+              images={media.data.filter((item) => item.contentType?.startsWith("image/"))}
+              title={r.title}
+            />
+            {media.data.filter((item) => !item.contentType?.startsWith("image/")).map((item) => {
               const video = item.contentType?.startsWith("video/");
-
-              if (image) {
-                return (
-                  <a key={item.id} href={item.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-2xl bg-slate-100">
-                    <img src={item.url} alt={item.fileName || r.title} className="max-h-[680px] w-full object-contain" loading="lazy" />
-                  </a>
-                );
-              }
 
               if (video) {
                 return (

@@ -5,6 +5,7 @@ import { ExternalLink, FileText } from "lucide-react";
 
 import type { Media, Resource } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
+import { ProgressiveImage } from "@/components/ui/ProgressiveImage";
 
 export function hostname(url: string) {
   try {
@@ -51,7 +52,57 @@ function youtubeEmbed(url?: string) {
   }
 }
 
-function MediaItem({ media, title }: { media: Media; title: string }) {
+export function ImageGallery({
+  images,
+  title,
+}: {
+  images: Media[];
+  title: string;
+}) {
+  const visibleImages = images.slice(0, 4);
+  const count = visibleImages.length;
+  if (!count) return null;
+
+  const gridClass = count === 1
+    ? "grid-cols-1"
+    : count === 3
+      ? "grid-cols-[1.15fr_1fr] grid-rows-[minmax(0,1fr)_minmax(0,1fr)]"
+      : "grid-cols-2";
+
+  return (
+    <div className={`grid overflow-hidden rounded-2xl bg-slate-100 ${gridClass} ${count === 3 ? "h-[340px]" : ""}`}>
+      {visibleImages.map((image, index) => {
+        const tileClass = count === 1
+          ? "aspect-[4/3]"
+          : count === 3
+            ? index === 0 ? "row-span-2 min-h-0" : "min-h-0"
+            : "aspect-[4/3]";
+        const remaining = images.length - 4;
+        return (
+          <MediaItem
+            key={image.id}
+            media={image}
+            title={title}
+            className={tileClass}
+            moreCount={index === 3 ? remaining : 0}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function MediaItem({
+  media,
+  title,
+  className = "",
+  moreCount = 0,
+}: {
+  media: Media;
+  title: string;
+  className?: string;
+  moreCount?: number;
+}) {
   if (isImage(media.url, media.contentType)) {
     return (
       <a
@@ -59,13 +110,20 @@ function MediaItem({ media, title }: { media: Media; title: string }) {
         target="_blank"
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
+        className={`group relative block h-full overflow-hidden ${className}`}
+        aria-label={moreCount > 0 ? `Open image, and ${moreCount} more images` : `Open ${media.fileName || title}`}
       >
-        <img
+        <ProgressiveImage
           src={media.url}
           alt={media.fileName || title}
-          className="max-h-[520px] w-full object-cover"
+          className="h-full max-h-[520px] min-h-36 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           loading="lazy"
         />
+        {moreCount > 0 && (
+          <span className="absolute inset-0 grid place-items-center bg-black/55 text-3xl font-black text-white">
+            +{moreCount}
+          </span>
+        )}
       </a>
     );
   }
@@ -122,9 +180,10 @@ export function ResourceContent({
   /** Show the whole description instead of clamping it to 3 lines. */
   fullText?: boolean;
 }) {
-  const mediaList = allMedia
-    ? (resource.media ?? [])
-    : (resource.media ?? []).slice(0, 1);
+  const mediaList = resource.media ?? [];
+  const imageMedia = mediaList.filter((item) => isImage(item.url, item.contentType));
+  const otherMedia = mediaList.filter((item) => !isImage(item.url, item.contentType));
+  const attachmentMedia = allMedia || imageMedia.length === 0 ? otherMedia : [];
 
   const youtubeUrl = youtubeEmbed(resource.url);
 
@@ -156,13 +215,11 @@ export function ResourceContent({
         )}
       </Link>
 
-      {mediaList.length > 0 && (
-        <div className="mt-4 space-y-2">
-          {mediaList.map((item) => (
-            <div
-              key={item.id}
-              className="overflow-hidden rounded-2xl bg-slate-100"
-            >
+      {(imageMedia.length > 0 || attachmentMedia.length > 0) && (
+        <div className="mt-4 space-y-3">
+          <ImageGallery images={imageMedia} title={resource.title} />
+          {attachmentMedia.map((item) => (
+            <div key={item.id} className="overflow-hidden rounded-2xl bg-slate-100">
               <MediaItem media={item} title={resource.title} />
             </div>
           ))}

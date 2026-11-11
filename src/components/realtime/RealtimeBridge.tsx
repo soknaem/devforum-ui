@@ -106,9 +106,9 @@ export function RealtimeBridge() {
             // "N new posts" pill is the alert; anywhere else a short toast is.
             const postId = notification.resourceId ?? notification.targetId;
             dispatch(newPostArrived(String(postId)));
-            if (pathnameRef.current !== "/") toast(notification.message, "info");
+            if (pathnameRef.current !== "/") toast(notification.message, "notification");
           } else {
-            toast(notification.message, "info");
+            toast(notification.message, "notification");
           }
         });
 

@@ -27,5 +27,3 @@ The UI currently maps the resource/feed/comments/bookmarks/follow/notification e
 
 ## HttpOnly authentication
 The UI never reads the access JWT. RTK Query uses `credentials: include`. The API sets `access_token` as HttpOnly and exposes `/auth/csrf`; state-changing requests automatically obtain the CSRF token and send `X-XSRF-TOKEN`.
-# devforum-ui
-# devforum-ui
