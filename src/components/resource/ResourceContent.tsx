@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, FileText } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, ExternalLink, FileText, X } from "lucide-react";
 
 import type { ContentBlock, Media, Resource } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
@@ -61,34 +62,138 @@ export function ImageGallery({
 }) {
   const visibleImages = images.slice(0, 4);
   const count = visibleImages.length;
-  if (!count) return null;
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const gridClass = count === 1
-    ? "grid-cols-1"
+    ? "mx-auto flex w-full max-w-4xl justify-center"
     : count === 3
       ? "grid-cols-[1.15fr_1fr] grid-rows-[minmax(0,1fr)_minmax(0,1fr)]"
       : "grid-cols-2";
 
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (activeIndex !== null && !dialog.open) dialog.showModal();
+    if (activeIndex === null && dialog.open) dialog.close();
+  }, [activeIndex]);
+
+  useEffect(() => {
+    if (activeIndex === null || images.length < 2) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "ArrowRight") {
+        setActiveIndex((current) => current === null ? null : (current + 1) % images.length);
+      } else if (event.key === "ArrowLeft") {
+        setActiveIndex((current) => current === null ? null : (current - 1 + images.length) % images.length);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeIndex, images.length]);
+
+  if (!count) return null;
+
+  function closeGallery() {
+    if (dialogRef.current?.open) dialogRef.current.close();
+    setActiveIndex(null);
+  }
+
+  function showImage(index: number) {
+    setActiveIndex(index);
+  }
+
+  const activeImage = activeIndex === null ? null : images[activeIndex];
+
   return (
-    <div className={`grid overflow-hidden rounded-2xl bg-slate-100 ${gridClass} ${count === 3 ? "h-[340px]" : ""}`}>
-      {visibleImages.map((image, index) => {
-        const tileClass = count === 1
-          ? "aspect-[4/3]"
-          : count === 3
-            ? index === 0 ? "row-span-2 min-h-0" : "min-h-0"
-            : "aspect-[4/3]";
-        const remaining = images.length - 4;
-        return (
-          <MediaItem
-            key={image.id}
-            media={image}
-            title={title}
-            className={tileClass}
-            moreCount={index === 3 ? remaining : 0}
-          />
-        );
-      })}
-    </div>
+    <>
+      <div className={`overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900 ${count > 1 ? "grid" : ""} ${gridClass} ${count === 3 ? "h-[340px]" : ""}`}>
+        {visibleImages.map((image, index) => {
+          const tileClass = count === 1
+            ? "max-h-[min(70vh,720px)]"
+            : count === 3
+              ? index === 0 ? "row-span-2 min-h-0" : "min-h-0"
+              : "aspect-[4/3]";
+          const remaining = images.length - 4;
+          return (
+            <MediaItem
+              key={image.id}
+              media={image}
+              title={title}
+              className={tileClass}
+              moreCount={index === 3 ? remaining : 0}
+              fit={count === 1 ? "contain" : "cover"}
+              onImageClick={() => showImage(index)}
+            />
+          );
+        })}
+      </div>
+
+      <dialog
+        ref={dialogRef}
+        aria-label={`${title} image gallery`}
+        onClose={() => setActiveIndex(null)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) closeGallery();
+        }}
+        className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none overflow-hidden border-0 bg-black/90 p-0 text-white backdrop:bg-black/80"
+      >
+        {activeImage && activeIndex !== null && (
+          <div className="mx-auto flex h-full w-full max-w-[1200px] flex-col">
+            <div className="flex items-center justify-between gap-4 p-4">
+              <p className="min-w-0 truncate text-sm text-white/80">
+                {activeImage.fileName || title}
+              </p>
+              <button
+                type="button"
+                onClick={closeGallery}
+                aria-label="Close image gallery"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="relative flex min-h-0 flex-1 items-center justify-center p-4 pt-0">
+              <img
+                src={activeImage.url}
+                alt={activeImage.fileName || title}
+                className="h-auto max-h-full w-auto max-w-full object-contain"
+              />
+
+              {images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setActiveIndex((activeIndex - 1 + images.length) % images.length)}
+                    aria-label="Previous image"
+                    className="absolute left-5 grid h-11 w-11 place-items-center rounded-full bg-black/60 text-white transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:left-8"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveIndex((activeIndex + 1) % images.length)}
+                    aria-label="Next image"
+                    className="absolute right-5 grid h-11 w-11 place-items-center rounded-full bg-black/60 text-white transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-8"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {images.length > 1 && (
+              <p className="pb-4 text-center text-sm text-white/75" aria-live="polite">
+                {activeIndex + 1} / {images.length}
+              </p>
+            )}
+          </div>
+        )}
+      </dialog>
+    </>
   );
 }
 
@@ -97,26 +202,36 @@ function MediaItem({
   title,
   className = "",
   moreCount = 0,
+  fit = "cover",
+  onImageClick,
 }: {
   media: Media;
   title: string;
   className?: string;
   moreCount?: number;
+  fit?: "contain" | "cover";
+  onImageClick?: () => void;
 }) {
   if (isImage(media.url, media.contentType)) {
+    const containedImage = fit === "contain";
+
     return (
-      <a
-        href={media.url}
-        target="_blank"
-        rel="noreferrer"
-        onClick={(event) => event.stopPropagation()}
-        className={`group relative block h-full overflow-hidden ${className}`}
-        aria-label={moreCount > 0 ? `Open image, and ${moreCount} more images` : `Open ${media.fileName || title}`}
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onImageClick?.();
+        }}
+        className={`${containedImage ? "group relative flex w-full items-center justify-center overflow-hidden" : "group relative block h-full overflow-hidden"} ${className}`}
+        aria-label={moreCount > 0 ? `Open image, and ${moreCount} more images` : `View ${media.fileName || title}`}
+        aria-haspopup="dialog"
       >
         <ProgressiveImage
           src={media.url}
           alt={media.fileName || title}
-          className="h-full max-h-[520px] min-h-36 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          className={containedImage
+            ? "h-auto max-h-[min(70vh,720px)] w-auto max-w-full object-contain"
+            : "h-full min-h-36 max-h-[520px] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"}
           loading="lazy"
         />
         {moreCount > 0 && (
@@ -124,7 +239,7 @@ function MediaItem({
             +{moreCount}
           </span>
         )}
-      </a>
+      </button>
     );
   }
 
