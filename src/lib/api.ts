@@ -156,6 +156,28 @@ export type AdminAudit = {
   createdAt: string;
 };
 
+export type AdminForumTopic = {
+  id: number;
+  title: string;
+  categoryKey: string;
+  categoryLabel: string;
+  authorUsername: string;
+  /** Set when this discussion is a share of another one. */
+  sharedFromId?: number | null;
+  replyCount: number;
+  viewCount: number;
+  createdAt: string;
+};
+
+export type AdminForumReply = {
+  id: number;
+  preview: string;
+  authorUsername: string;
+  topicId: number;
+  topicTitle: string;
+  createdAt: string;
+};
+
 export type NotificationScope = "ALL" | "FOLLOWING" | "INTERESTING";
 
 export type ResourceStatus = "PUBLISHED" | "DRAFT" | "ARCHIVED";
@@ -1183,6 +1205,42 @@ export const api = createApi({
       providesTags: ["Admin"],
     }),
 
+    // ---- admin: forum moderation ----
+    adminForumTopics: build.query<
+      PageResponse<AdminForumTopic>,
+      { search?: string; categoryKey?: string; page?: number; size?: number }
+    >({
+      query: ({ search, categoryKey, page = 0, size = 20 }) => ({
+        url: "/admin/forum/topics",
+        params: { page, size, ...(search ? { search } : {}), ...(categoryKey ? { categoryKey } : {}) },
+      }),
+      transformResponse: (r: ApiResponse<PageResponse<AdminForumTopic>>) => r.data,
+      providesTags: ["Admin"],
+    }),
+
+    adminDeleteForumTopic: build.mutation<ApiResponse<void>, number | string>({
+      query: (id) => ({ url: `/admin/forum/topics/${id}`, method: "DELETE" }),
+      // "Forum" without an id refreshes every forum list/topic/reply query in the portal too.
+      invalidatesTags: ["Admin", { type: "Forum" }],
+    }),
+
+    adminForumReplies: build.query<
+      PageResponse<AdminForumReply>,
+      { search?: string; page?: number; size?: number }
+    >({
+      query: ({ search, page = 0, size = 20 }) => ({
+        url: "/admin/forum/replies",
+        params: { page, size, ...(search ? { search } : {}) },
+      }),
+      transformResponse: (r: ApiResponse<PageResponse<AdminForumReply>>) => r.data,
+      providesTags: ["Admin"],
+    }),
+
+    adminDeleteForumReply: build.mutation<ApiResponse<void>, number | string>({
+      query: (id) => ({ url: `/admin/forum/replies/${id}`, method: "DELETE" }),
+      invalidatesTags: ["Admin", { type: "Forum" }],
+    }),
+
     // ---- ranked / following feeds ----
     getForYou: build.query<
       CursorPageResponse<Resource>,
@@ -1435,6 +1493,10 @@ export const {
   useAdminReportsQuery,
   useAdminResolveReportMutation,
   useAdminAuditQuery,
+  useAdminForumTopicsQuery,
+  useAdminDeleteForumTopicMutation,
+  useAdminForumRepliesQuery,
+  useAdminDeleteForumReplyMutation,
   useLazyGetForYouQuery,
   useLazyGetFollowingFeedQuery,
   useMarkSeenMutation,
