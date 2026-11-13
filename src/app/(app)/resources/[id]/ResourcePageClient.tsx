@@ -37,10 +37,12 @@ import {
 import { Avatar } from "@/components/ui/Avatar";
 import type { Comment } from "@/lib/api";
 import { ReactionControl, reactionInfo } from "@/components/resource/ReactionControl";
-import { ImageGallery, ResourceBlockBody, SharedPostEmbed } from "@/components/resource/ResourceContent";
-import { ResourceBodyEditor, type EditableContentBlock } from "@/components/resource/ResourceBodyEditor";
+import { ImageGallery, ResourceBlockBody, ResourceMarkdown, SharedPostEmbed } from "@/components/resource/ResourceContent";
+import { buildDescriptionPreview, formatTextBlock, parseEditableText, ResourceBodyEditor, type EditableContentBlock } from "@/components/resource/ResourceBodyEditor";
 import { ShareDialog } from "@/components/resource/ShareDialog";
 import { useToast } from "@/components/ui/Toast";
+import { resourceRemoved } from "@/features/realtime/realtimeSlice";
+import { useAppDispatch } from "@/store/hooks";
 
 function CommentItem({
   c,
@@ -189,6 +191,7 @@ function CommentItem({
 export default function ResourcePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
   const { data, isLoading } = useGetResourceQuery(id);
   const r = data?.data;
@@ -248,7 +251,7 @@ export default function ResourcePage() {
     const existingBlocks: EditableContentBlock[] = r.blocks?.length
       ? r.blocks.flatMap((block: ContentBlock): EditableContentBlock[] => {
           if (block.type === "TEXT") {
-            return [{ id: String(block.id), type: "TEXT", text: block.text || "" }];
+            return [{ id: String(block.id), type: "TEXT", ...parseEditableText(block.text || "") }];
           }
           return block.media
             ? [{ id: String(block.id), type: "MEDIA", media: block.media }]
@@ -301,6 +304,7 @@ export default function ResourcePage() {
   async function remove() {
     try {
       await del(id).unwrap();
+      dispatch(resourceRemoved({ id: String(id), reason: "deleted" }));
       toast("Resource deleted", "success");
       router.replace("/");
     } catch {
@@ -312,12 +316,17 @@ export default function ResourcePage() {
     const currentResource = r;
     if (!currentResource) return;
 
-    const description = bodyBlocks
-      .filter((block): block is Extract<EditableContentBlock, { type: "TEXT" }> => block.type === "TEXT")
-      .map((block) => block.text.trim())
-      .filter(Boolean)
-      .join("\n\n")
-      .slice(0, 2000);
+    const serializedText = new Map<string, string>();
+    try {
+      bodyBlocks.forEach((block) => {
+        if (block.type === "TEXT") serializedText.set(block.id, formatTextBlock(block));
+      });
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Check the formatted content and try again.", "error");
+      return;
+    }
+
+    const description = buildDescriptionPreview([...serializedText.values()]);
     const uploadedFiles: File[] = [];
     const orderedBlocks: Array<
       | { type: "TEXT"; text: string }
@@ -326,7 +335,7 @@ export default function ResourcePage() {
     > = [];
     bodyBlocks.forEach((block) => {
       if (block.type === "TEXT") {
-        orderedBlocks.push({ type: "TEXT", text: block.text });
+        orderedBlocks.push({ type: "TEXT", text: serializedText.get(block.id) ?? "" });
       } else if (block.file) {
         const fileIndex = uploadedFiles.push(block.file) - 1;
         orderedBlocks.push({ type: "MEDIA", fileIndex });
@@ -373,7 +382,7 @@ export default function ResourcePage() {
 
       <div className="card overflow-visible p-5 sm:p-7">
         <div className="flex items-start gap-3">
-          <Avatar name={r.authorUsername} src={r.authorUsername === me?.data?.username ? me?.data?.avatarUrl : undefined} />
+          <Avatar name={r.authorUsername} src={r.authorAvatarUrl || (r.authorUsername === me?.data?.username ? me?.data?.avatarUrl : undefined)} />
           <div className="min-w-0 flex-1">
             <a href={`/users/${r.authorUsername}`} className="text-[15px] font-black text-slate-900">
               @{r.authorUsername}
@@ -449,9 +458,7 @@ export default function ResourcePage() {
             {r.blocks?.length ? (
               <ResourceBlockBody blocks={r.blocks} title={r.title} />
             ) : r.description ? (
-              <p className="mt-4 whitespace-pre-wrap text-[16px] leading-7 text-slate-700">
-                {r.description}
-              </p>
+              <ResourceMarkdown text={r.description} className="mt-4 text-[16px] leading-7 text-slate-700" />
             ) : null}
           </>
         )}

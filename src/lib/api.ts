@@ -42,6 +42,7 @@ export type Resource = {
   categoryName?: string;
   authorId: string | number;
   authorUsername: string;
+  authorAvatarUrl?: string | null;
   tags: string[];
   media: Media[];
   /** Ordered body (text and files in the author's order). Only on the single-resource response. */
@@ -203,6 +204,58 @@ export type Comment = {
   updatedAt: string;
 };
 
+export type ForumContentBlock = {
+  type: "TEXT" | "CODE" | "IMAGE" | "LINK" | "FILE";
+  text?: string;
+  language?: string;
+  url?: string;
+  title?: string;
+  alt?: string;
+  mediaId?: string | number;
+  fileName?: string;
+  contentType?: string;
+};
+
+export type ForumCategory = {
+  key: string;
+  label: string;
+  description: string;
+};
+
+export type ForumTopic = {
+  id: string | number;
+  title: string;
+  categoryKey: string;
+  categoryLabel: string;
+  summary?: string;
+  blocks?: ForumContentBlock[];
+  authorId: string | number;
+  authorUsername: string;
+  authorAvatarUrl?: string | null;
+  replyCount: number;
+  viewCount: number;
+  /** First image of the topic (set in lists too, where `blocks` is empty). */
+  coverImageUrl?: string | null;
+  /** The original discussion when this topic is a share. */
+  sharedFrom?: ForumTopic | null;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ForumReply = {
+  id: string | number;
+  topicId: string | number;
+  blocks: ForumContentBlock[];
+  authorId: string | number;
+  authorUsername: string;
+  authorAvatarUrl?: string | null;
+  edited: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type UserProfile = {
   id: string | number;
   username: string;
@@ -279,6 +332,7 @@ export const api = createApi({
     "MyResources",
     "Interest",
     "Block",
+    "Forum",
     "Admin",
   ],
 
@@ -1201,6 +1255,77 @@ export const api = createApi({
       invalidatesTags: ["Block", "Notification", "Comment"],
     }),
 
+    getForumCategories: build.query<ApiResponse<ForumCategory[]>, void>({
+      query: () => "/forum/categories",
+    }),
+
+    getForumTopics: build.query<
+      PageResponse<ForumTopic>,
+      { categoryKey?: string; sortBy?: "popular" | "new"; page?: number; size?: number }
+    >({
+      query: ({ categoryKey, sortBy = "popular", page = 0, size = 30 }) => ({
+        url: "/forum/topics",
+        params: { page, size, sortBy, ...(categoryKey ? { categoryKey } : {}) },
+      }),
+      transformResponse: (response: ApiResponse<PageResponse<ForumTopic>>) => response.data,
+      providesTags: [{ type: "Forum", id: "LIST" }],
+    }),
+
+    getForumTopic: build.query<ApiResponse<ForumTopic>, string>({
+      query: (id) => `/forum/topics/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Forum", id }],
+    }),
+
+    getForumReplies: build.query<
+      PageResponse<ForumReply>,
+      { topicId: string; page?: number; size?: number }
+    >({
+      query: ({ topicId, page = 0, size = 50 }) => ({
+        url: `/forum/topics/${topicId}/replies`,
+        params: { page, size },
+      }),
+      transformResponse: (response: ApiResponse<PageResponse<ForumReply>>) => response.data,
+      providesTags: (_result, _error, { topicId }) => [{ type: "Forum", id: `replies-${topicId}` }],
+    }),
+
+    createForumTopic: build.mutation<
+      ApiResponse<ForumTopic>,
+      { title: string; categoryKey: string; blocks: ForumContentBlock[] }
+    >({
+      query: (body) => ({ url: "/forum/topics", method: "POST", body }),
+      invalidatesTags: [{ type: "Forum", id: "LIST" }],
+    }),
+
+    createForumReply: build.mutation<
+      ApiResponse<ForumReply>,
+      { topicId: string; blocks: ForumContentBlock[] }
+    >({
+      query: ({ topicId, blocks }) => ({
+        url: `/forum/topics/${topicId}/replies`,
+        method: "POST",
+        body: { blocks },
+      }),
+      invalidatesTags: (_result, _error, { topicId }) => [
+        { type: "Forum", id: "LIST" },
+        { type: "Forum", id: topicId },
+        { type: "Forum", id: `replies-${topicId}` },
+      ],
+    }),
+
+    shareForumTopic: build.mutation<ApiResponse<ForumTopic>, { id: string; comment?: string }>({
+      query: ({ id, comment }) => ({
+        url: `/forum/topics/${id}/share`,
+        method: "POST",
+        body: { comment },
+      }),
+      invalidatesTags: [{ type: "Forum", id: "LIST" }],
+    }),
+
+    deleteForumTopic: build.mutation<void, string>({
+      query: (id) => ({ url: `/forum/topics/${id}`, method: "DELETE" }),
+      invalidatesTags: [{ type: "Forum", id: "LIST" }],
+    }),
+
     unreadCount: build.query<number, void>({
       query: () =>
         "/notifications/unread-count",
@@ -1345,4 +1470,12 @@ export const {
   useUnreadCountQuery,
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
+  useGetForumCategoriesQuery,
+  useGetForumTopicsQuery,
+  useGetForumTopicQuery,
+  useGetForumRepliesQuery,
+  useCreateForumTopicMutation,
+  useCreateForumReplyMutation,
+  useShareForumTopicMutation,
+  useDeleteForumTopicMutation,
 } = api;

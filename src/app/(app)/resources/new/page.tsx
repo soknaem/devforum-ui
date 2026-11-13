@@ -3,11 +3,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useCreateResourceWithMediaMutation } from "@/lib/api";
-import { ResourceBodyEditor, type EditableContentBlock } from "@/components/resource/ResourceBodyEditor";
+import { buildDescriptionPreview, formatTextBlock, ResourceBodyEditor, type EditableContentBlock } from "@/components/resource/ResourceBodyEditor";
+import { useToast } from "@/components/ui/Toast";
 const types = ["BOOK", "CODE", "LINK", "VIDEO", "ARTICLE"];
 export default function NewResourcePage() {
   const router = useRouter();
   const [createMedia, { isLoading: mediaLoading }] = useCreateResourceWithMediaMutation();
+  const { toast } = useToast();
   const [form, setForm] = useState({
     title: "",
     url: "",
@@ -25,22 +27,26 @@ export default function NewResourcePage() {
     e.preventDefault();
     const tags = form.tags.split(",").map((value) => value.trim()).filter(Boolean);
     const uploadedFiles: File[] = [];
+    const serializedText = new Map<string, string>();
     const orderedBlocks: Array<{ type: "TEXT"; text: string } | { type: "MEDIA"; fileIndex: number }> = [];
-    bodyBlocks.forEach((block) => {
-      if (block.type === "TEXT") {
-        orderedBlocks.push({ type: "TEXT", text: block.text });
-      } else if (block.file) {
-        const fileIndex = uploadedFiles.push(block.file) - 1;
-        orderedBlocks.push({ type: "MEDIA", fileIndex });
-      }
-    });
-    const description = bodyBlocks
-      .filter((block): block is Extract<EditableContentBlock, { type: "TEXT" }> => block.type === "TEXT")
-      .map((block) => block.text.trim())
-      .filter(Boolean)
-      .join("\n\n")
-      .slice(0, 2000);
 
+    try {
+      bodyBlocks.forEach((block) => {
+        if (block.type === "TEXT") {
+          const text = formatTextBlock(block);
+          serializedText.set(block.id, text);
+          orderedBlocks.push({ type: "TEXT", text });
+        } else if (block.file) {
+          const fileIndex = uploadedFiles.push(block.file) - 1;
+          orderedBlocks.push({ type: "MEDIA", fileIndex });
+        }
+      });
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Check the formatted content and try again.", "error");
+      return;
+    }
+
+    const description = buildDescriptionPreview([...serializedText.values()]);
     const fd = new FormData();
     fd.append("title", form.title);
     fd.append("description", description);
@@ -52,9 +58,11 @@ export default function NewResourcePage() {
     fd.append("blocks", JSON.stringify(orderedBlocks));
     uploadedFiles.forEach((file) => fd.append("files", file));
 
-    const result = await createMedia(fd);
-    if ("data" in result && result.data?.data?.id) {
-      router.push(`/resources/${result.data.data.id}`);
+    try {
+      const result = await createMedia(fd).unwrap();
+      if (result.data?.id) router.push(`/resources/${result.data.id}`);
+    } catch {
+      toast("Could not publish the resource. Please check your content and try again.", "error");
     }
   }
   return (

@@ -33,4 +33,5 @@ export type RealtimeEvent = {
   targetType?: "RESOURCE" | "COMMENT" | string;
   targetId?: number | string;
   parentCommentId?: number | string;
+  resource?: { id?: number | string; status?: string };
 };

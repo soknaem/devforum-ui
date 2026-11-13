@@ -13,6 +13,7 @@ import {
 import { ResourceCard } from "@/components/resource/ResourceCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FeedSkeleton } from "@/components/ui/Skeleton";
+import { useAppSelector } from "@/store/hooks";
 
 export type RankedMode = "for-you" | "following";
 
@@ -25,6 +26,8 @@ export type RankedMode = "for-you" | "following";
  */
 export function RankedFeed({ mode }: { mode: RankedMode }) {
   const [items, setItems] = useState<Resource[]>([]);
+  const removedIds = useAppSelector((state) => state.realtime.removedIds);
+  const visibleItems = items.filter((item) => !removedIds.includes(String(item.id)));
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -106,7 +109,7 @@ export function RankedFeed({ mode }: { mode: RankedMode }) {
 
       {!initialised ? (
         <FeedSkeleton />
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <EmptyState
           title={mode === "following" ? "Nothing from people you follow yet" : "Nothing to show yet"}
           description={
@@ -117,7 +120,7 @@ export function RankedFeed({ mode }: { mode: RankedMode }) {
         />
       ) : (
         <div className="min-w-0 space-y-3 sm:space-y-4">
-          {items.map((resource) => (
+          {visibleItems.map((resource) => (
             <ResourceCard key={resource.id} resource={resource} />
           ))}
         </div>

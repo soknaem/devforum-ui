@@ -13,6 +13,8 @@ export function notificationHref(
   if (n.type === "FOLLOW" || n.targetType === "USER") {
     return n.actorUsername ? `/users/${encodeURIComponent(n.actorUsername)}` : null;
   }
+  // A share of a forum discussion opens that discussion.
+  if (n.targetType === "FORUM_TOPIC" && n.targetId != null) return `/forum/${n.targetId}`;
   if (n.resourceId == null) return null;
 
   const base = `/resources/${n.resourceId}`;

@@ -1,12 +1,50 @@
 "use client";
 
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import remarkGfm from "remark-gfm";
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, FileText, X } from "lucide-react";
 
 import type { ContentBlock, Media, Resource } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
 import { ProgressiveImage } from "@/components/ui/ProgressiveImage";
+
+export function ResourceMarkdown({ text, className = "" }: { text: string; className?: string }) {
+  return (
+    <div className={`resource-markdown min-w-0 break-words ${className}`}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{
+          p: ({ children }) => <p className="whitespace-pre-wrap break-words">{children}</p>,
+          h1: ({ children }) => <h3 className="text-xl font-black leading-tight">{children}</h3>,
+          h2: ({ children }) => <h4 className="text-lg font-extrabold leading-tight">{children}</h4>,
+          h3: ({ children }) => <h5 className="text-base font-bold leading-tight">{children}</h5>,
+          ul: ({ children }) => <ul className="list-disc pl-6">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-6">{children}</ol>,
+          li: ({ children }) => <li className="my-1">{children}</li>,
+          blockquote: ({ children }) => <blockquote className="border-l-2 border-slate-300 pl-4 text-slate-500">{children}</blockquote>,
+          a: ({ href, children }) => (
+            <a href={href} target={href?.startsWith("#") ? undefined : "_blank"} rel={href?.startsWith("#") ? undefined : "noreferrer"} className="font-semibold text-blue-600 underline underline-offset-2">
+              {children}
+            </a>
+          ),
+          pre: ({ children }) => <pre className="overflow-x-auto rounded-2xl bg-slate-950 p-4 text-sm leading-6 text-slate-100">{children}</pre>,
+          code: ({ className: codeClassName, children }) => (
+            <code className={codeClassName || "rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.9em] text-slate-800"}>{children}</code>
+          ),
+          table: ({ children }) => <table className="w-full border-collapse text-left text-sm">{children}</table>,
+          th: ({ children }) => <th className="border border-slate-200 bg-slate-100 px-3 py-2 font-bold">{children}</th>,
+          td: ({ children }) => <td className="border border-slate-200 px-3 py-2 align-top">{children}</td>,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 export function hostname(url: string) {
   try {
@@ -293,9 +331,7 @@ export function ResourceBlockBody({
       {blocks.map((block) => {
         if (block.type === "TEXT") {
           return block.text?.trim() ? (
-            <p key={block.id} className="whitespace-pre-wrap break-words text-[16px] leading-7 text-slate-700">
-              {block.text}
-            </p>
+            <ResourceMarkdown key={block.id} text={block.text} className="text-[16px] leading-7 text-slate-700" />
           ) : null;
         }
 
@@ -352,19 +388,18 @@ export function ResourceContent({
         <h2 className="mt-3 text-[21px] font-black leading-snug tracking-tight text-slate-950 sm:text-[23px]">
           {resource.title}
         </h2>
-
-        {resource.description && !compact && !(orderedBody && resource.blocks?.length) && (
-          <p
-            className={
-              fullText
-                ? "mt-2 whitespace-pre-wrap break-words text-[16px] leading-7 text-slate-600"
-                : "mt-2 line-clamp-3 text-[16px] leading-7 text-slate-600"
-            }
-          >
-            {resource.description}
-          </p>
-        )}
       </Link>
+
+      {resource.description && !compact && !(orderedBody && resource.blocks?.length) && (
+        <ResourceMarkdown
+          text={resource.description}
+          className={
+            fullText
+              ? "mt-2 text-[16px] leading-7 text-slate-600"
+              : "mt-2 line-clamp-3 text-[16px] leading-7 text-slate-600"
+          }
+        />
+      )}
 
       {orderedBody && resource.blocks?.length ? (
         <ResourceBlockBody blocks={resource.blocks} title={resource.title} />
@@ -450,7 +485,7 @@ export function SharedPostEmbed({
     <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <div className="p-4 pt-3.5">
         <div className="flex items-center gap-3">
-          <Avatar name={original.authorUsername} size="sm" />
+          <Avatar name={original.authorUsername} src={original.authorAvatarUrl || undefined} size="sm" />
 
           <div className="min-w-0 flex-1">
             <Link

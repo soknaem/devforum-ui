@@ -9,6 +9,7 @@ import {
   Settings,
   Shield,
   Home,
+  MessagesSquare,
   LogOut,
   Plus,
   Search,
@@ -26,6 +27,7 @@ import { useAppSelector } from "@/store/hooks";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/forum", label: "Forum", icon: MessagesSquare },
   { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
   { href: "/notifications", label: "Notifications", icon: Bell },
 ];
@@ -269,8 +271,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
 
         {/* Keep the feature navigation visible even when the top row hides. */}
-        <nav className="grid h-[54px] grid-cols-5 border-t border-slate-100 bg-white" aria-label="Mobile navigation">
+        <nav className="grid h-[54px] grid-cols-6 border-t border-slate-100 bg-white" aria-label="Mobile navigation">
           <MobileNav href="/" label="Home" icon={Home} active={isActive("/")} />
+          <MobileNav href="/forum" label="Forum" icon={MessagesSquare} active={isActive("/forum")} />
           <MobileNav href="/bookmarks" label="Bookmarks" icon={Bookmark} active={isActive("/bookmarks")} />
           <MobileNav href="/resources/new" label="Create" icon={Plus} active={false} />
           <MobileNav
@@ -353,9 +356,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               </Link>
             )}
-            <div className="mt-7 border-t border-slate-200 pt-5 text-[14px] leading-6 text-slate-400">
-              DevForum is a community for sharing developer knowledge, projects and useful resources.
-            </div>
           </div>
         </aside>
 
@@ -372,6 +372,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="card p-5">
               <h3 className="text-[17px] font-black">Quick actions</h3>
               <div className="mt-3 space-y-2 text-[15px]">
+                <Link className="block text-blue-600" href="/forum/new">Start a discussion →</Link>
                 <Link className="block text-blue-600" href="/resources/new">Share a resource →</Link>
                 <Link className="block text-blue-600" href="/profile">Edit your profile →</Link>
               </div>

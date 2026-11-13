@@ -8,10 +8,12 @@ import { ResourceCard } from "@/components/resource/ResourceCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ShareSiteButton } from "@/components/layout/ShareSiteButton";
 import Link from "next/link";
+import { useAppSelector } from "@/store/hooks";
 
 function HomeFeed() {
   const params = useSearchParams();
   const search = (params.get("search") || "").trim();
+  const removedIds = useAppSelector((state) => state.realtime.removedIds);
 
   const [feedItems, setFeedItems] = useState<Resource[]>([]);
   const [feedCursor, setFeedCursor] = useState<string | undefined>(undefined);
@@ -246,7 +248,9 @@ function HomeFeed() {
     search,
   ]);
 
-  const items = search ? searchItems : feedItems;
+  const items = (search ? searchItems : feedItems).filter(
+    (item) => !removedIds.includes(String(item.id)),
+  );
   const firstLoading = search
     ? resources.isLoading && page === 0
     : feed.isLoading && feedItems.length === 0;
@@ -287,6 +291,9 @@ function HomeFeed() {
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <ShareSiteButton />
+            <Link href="/forum" className="button-secondary">
+              Explore forum
+            </Link>
             <Link href="/resources/new" className="button-primary">
               Share a resource
             </Link>
@@ -319,10 +326,17 @@ function HomeFeed() {
           </div>
         </>
       ) : (
-        <EmptyState
-          title={search ? "No results" : "No posts yet"}
-          description={search ? "Try a different search term." : "Be the first developer to share something useful."}
-        />
+        <>
+          <EmptyState
+            title={search ? "No results" : "No posts yet"}
+            description={search ? "Try a different search term." : "Be the first developer to share something useful."}
+          />
+          {hasMore && (
+            <button type="button" onClick={loadMore} className="button-secondary mx-auto block">
+              Load more resources
+            </button>
+          )}
+        </>
       )}
     </section>
   );

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import {
   useBookmarkMutation,
+  useMeQuery,
   useReactMutation,
   useRemoveReactionMutation,
   useUnbookmarkMutation,
@@ -30,6 +31,7 @@ export function ResourceCard({
   initialSaved?: boolean;
   onBookmarkChange?: (saved: boolean) => void;
 }) {
+  const { data: me } = useMeQuery();
   const [bookmark] = useBookmarkMutation();
   const [unbookmark] = useUnbookmarkMutation();
   const [react] = useReactMutation();
@@ -87,13 +89,16 @@ export function ResourceCard({
   }
 
   const original = resource.sharedFrom ?? null;
+  const authorAvatarUrl =
+    resource.authorAvatarUrl ??
+    (String(resource.authorId) === String(me?.data?.id) ? me?.data?.avatarUrl : undefined);
 
   return (
     <article className="feed-card">
       <div className="p-4 sm:p-5">
         {/* Author */}
         <div className="flex items-start gap-3">
-          <Avatar name={resource.authorUsername} />
+          <Avatar name={resource.authorUsername} src={authorAvatarUrl || undefined} />
 
           <div className="min-w-0 flex-1">
             <Link
